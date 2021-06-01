@@ -1,0 +1,23 @@
+{
+  "name": "solarsystem-webgl",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brokencuph/solarsystem-webgl.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/brokencuph/solarsystem-webgl/issues"
+  },
+  "homepage": "https://github.com/brokencuph/solarsystem-webgl#readme",
+  "devDependencies": {
+    "webpack": "^5.38.1",
+    "webpack-cli": "^4.7.0"
+  }
+}
