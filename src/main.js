@@ -10,6 +10,6 @@ draw.init()
 var initialTime = (new Date).getTime()
 function redraw() {
     draw.draw(((new Date).getTime() - initialTime) / 1000)
-    setTimeout(redraw, 500)
+    setTimeout(redraw, 10)
 }
-setTimeout(redraw, 500)
+setTimeout(redraw, 10)

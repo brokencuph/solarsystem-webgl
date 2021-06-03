@@ -61,6 +61,12 @@ export function createProgram(gl, vertexShader, fragmentShader) {
 // When the image finished loading copy it into the texture.
 // From https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL.
 //
+/**
+ * Create a texture object with specific image URL.
+ * @param {WebGL2RenderingContext} gl The rendering context.
+ * @param {string} url Image URL.
+ * @returns {WebGLTexture} The texture object.
+ */
 export function loadTexture(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -84,6 +90,7 @@ export function loadTexture(gl, url) {
   
     const image = new Image();
     image.onload = function() {
+      // console.log("image loaded")
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
                     srcFormat, srcType, image);
@@ -93,13 +100,14 @@ export function loadTexture(gl, url) {
       // power of 2 in both dimensions.
       if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
          // Yes, it's a power of 2. Generate mips.
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
          gl.generateMipmap(gl.TEXTURE_2D);
       } else {
          // No, it's not a power of 2. Turn off mips and set
          // wrapping to clamp to edge
-         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       }
     };
     image.src = url;

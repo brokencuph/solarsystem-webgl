@@ -112,7 +112,7 @@ var star_vertShader = `#version 300 es
 layout (location=0) in vec3 pos;
 layout (location=1) in vec2 texCoord;
 
-out vec2 tc;
+out highp vec2 tc;
 uniform mat4 mv_matrix;
 uniform mat4 proj_matrix;
 uniform sampler2D samp;
@@ -126,7 +126,7 @@ void main(void)
 
 var star_fragShader = `#version 300 es
 precision highp float;
-in vec2 tc;
+in highp vec2 tc;
 out vec4 color;
 uniform mat4 mv_matrix;
 uniform mat4 proj_matrix;
@@ -134,7 +134,9 @@ uniform sampler2D samp;
 
 void main(void)
 {
-    color = texture(samp, tc);
+    // color = vec4(tc, 0.0, 1.0);
+    color = vec4(texture(samp, tc).rgb, 1.0);
+    // color = vec4(1.0, 0.0, 0.0, 1.0);
 }
 `
 // end shader source code
@@ -206,11 +208,10 @@ export function setContext(context) {
 
 /**
  * Resize the canvas element and redraw when browser window is resized.
- * @param {HTMLCanvasElement} canvas The canvas element that needs resizing.
  */
-export function windowResize(canvas) {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+export function windowResize() {
+    this.width = window.innerWidth
+    this.height = window.innerHeight
     aspect = window.innerWidth / window.innerHeight
     pMat = glm.perspective(1.0472, aspect, 0.1, 1000.0)
 }
@@ -224,8 +225,8 @@ function setupVertices() {
         pvalues.push(vert[ind[i]].y)
         pvalues.push(vert[ind[i]].z)
 
-        tvalues.push(tex[ind[i]].s)
-        tvalues.push(tex[ind[i]].t)
+        tvalues.push(tex[ind[i]].x)
+        tvalues.push(tex[ind[i]].y)
 
         nvalues.push(normals[ind[i]].x)
         nvalues.push(normals[ind[i]].y)
@@ -268,6 +269,7 @@ export function init() {
 }
 
 export function draw(currentTime) {
+    // console.log("draw")
     if (!gl) {
         throw "Rendering context is not set."
     }
@@ -279,6 +281,7 @@ export function draw(currentTime) {
     gl.useProgram(starRenderingProgram)
     const mvLoc = gl.getUniformLocation(starRenderingProgram, "mv_matrix")
     const projLoc = gl.getUniformLocation(starRenderingProgram, "proj_matrix")
+    const sampLoc = gl.getUniformLocation(starRenderingProgram, "samp")
     const newCamera = glm.rotate(glm.mat4(1.0), -currentTime / 10.0 + yrot, glm.vec3(0.0, 1.0, 0.0))
         ['*'](glm.rotate(glm.mat4(1.0), xrot, glm.vec3(1.0, 0.0, 0.0)))
         ['*'](glm.vec4(cameraX, cameraY, cameraZ, 1.0))
@@ -287,6 +290,7 @@ export function draw(currentTime) {
     const mvMat = vMat['*'](mMat)
     gl.uniformMatrix4fv(mvLoc, false, mvMat.elements)
     gl.uniformMatrix4fv(projLoc, false, pMat.elements)
+    gl.uniform1i(sampLoc, 0)
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo[0])
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
     gl.enableVertexAttribArray(0)
