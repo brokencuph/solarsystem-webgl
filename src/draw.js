@@ -188,7 +188,7 @@ var myPlanets = [
     // earth separated
     new Planet(9.84, 0.53, 30.0, 5.14, 3.14, "textures/mars.bmp"),
     new Planet(33.62, 11.2, 177.0, 2.07, 3.14, "textures/jupiter.bmp"),
-    new Planet(61.9, 9.44, 300.0, 2.238, 3.14, "textures/sature.bmp"),
+    new Planet(61.9, 9.44, 300.0, 2.238, 3.14, "textures/saturn.bmp"),
     new Planet(124.03, 4.0, 400.0, 3.598, 3.14, "textures/uranus.bmp"),
     new Planet(194.09, 3.88, 500.0, 3.368, 3.14, "textures/neptune.bmp")
 ]
@@ -197,6 +197,12 @@ var myEarth = new Planet(6.46, 1.0, 15.0, 5.0, 3.14, "textures/earth.bmp")
 var aspect, pMat
 var cameraX, cameraY, cameraZ
 var xrot = 0.0, yrot = 0.0
+
+const lightLoc = glm.vec3(0.0, 0.0, 0.0)
+const globalAmbient = new Float32Array([0.7, 0.7, 0.7, 1.0])
+const lightAmbient = new Float32Array([0.0, 0.0, 0.0, 1.0])
+const lightDiffuse = new Float32Array([1.0, 1.0, 1.0, 1.0])
+const lightSpecular = new Float32Array([1.0, 1.0, 1.0, 1.0])
 
 /**
  * Set the context field of this module.
@@ -214,6 +220,7 @@ export function windowResize() {
     this.height = window.innerHeight
     aspect = window.innerWidth / window.innerHeight
     pMat = glm.perspective(1.0472, aspect, 0.1, 1000.0)
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 }
 
 function setupVertices() {
@@ -246,6 +253,7 @@ function setupVertices() {
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo[1])
     gl.bufferData(gl.ARRAY_BUFFER, f_tvalues, gl.STATIC_DRAW)
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo[2])
+    gl.bufferData(gl.ARRAY_BUFFER, f_nvalues, gl.STATIC_DRAW)
 }
 
 export function init() {
@@ -268,6 +276,25 @@ export function init() {
     myEarth.selfAxis = glm.vec3(0.407, 0.914, 0.0)
 }
 
+function installLights(vMat) {
+    const transformed = vMat['*'](glm.vec4(lightLoc, 1.0)).xyz
+    const lightPos = new Float32Array([transformed.x, transformed.y, transformed.z])
+
+    // get the locations of the light and material fields in the shader
+    const globalAmbLoc = gl.getUniformLocation(renderingProgram, "globalAmbient")
+    const ambLoc = gl.getUniformLocation(renderingProgram, "light.ambient")
+    const diffLoc = gl.getUniformLocation(renderingProgram, "light.diffuse")
+    const specLoc = gl.getUniformLocation(renderingProgram, "light.specular")
+    const posLoc = gl.getUniformLocation(renderingProgram, "light.position")
+
+    // set the uniform light and material values in the shader
+    gl.uniform4fv(globalAmbLoc, globalAmbient)
+    gl.uniform4fv(ambLoc, lightAmbient)
+    gl.uniform4fv(diffLoc, lightDiffuse)
+    gl.uniform4fv(specLoc, lightSpecular)
+    gl.uniform3fv(posLoc, lightPos)
+}
+
 export function draw(currentTime) {
     // console.log("draw")
     if (!gl) {
@@ -279,9 +306,9 @@ export function draw(currentTime) {
 
     // draw the star sphere
     gl.useProgram(starRenderingProgram)
-    const mvLoc = gl.getUniformLocation(starRenderingProgram, "mv_matrix")
-    const projLoc = gl.getUniformLocation(starRenderingProgram, "proj_matrix")
-    const sampLoc = gl.getUniformLocation(starRenderingProgram, "samp")
+    let mvLoc = gl.getUniformLocation(starRenderingProgram, "mv_matrix")
+    let projLoc = gl.getUniformLocation(starRenderingProgram, "proj_matrix")
+    let sampLoc = gl.getUniformLocation(starRenderingProgram, "samp")
     const newCamera = glm.rotate(glm.mat4(1.0), -currentTime / 10.0 + yrot, glm.vec3(0.0, 1.0, 0.0))
         ['*'](glm.rotate(glm.mat4(1.0), xrot, glm.vec3(1.0, 0.0, 0.0)))
         ['*'](glm.vec4(cameraX, cameraY, cameraZ, 1.0))
@@ -304,4 +331,120 @@ export function draw(currentTime) {
     gl.disable(gl.DEPTH_TEST)
     gl.drawArrays(gl.TRIANGLES, 0, mySphere.numIndices)
     gl.enable(gl.DEPTH_TEST)
+
+    // switch to main rendering program
+    gl.useProgram(renderingProgram)
+
+    mvLoc = gl.getUniformLocation(renderingProgram, "mv_matrix")
+    projLoc = gl.getUniformLocation(renderingProgram, "proj_matrix")
+    let nLoc = gl.getUniformLocation(renderingProgram, "norm_matrix")
+    installLights(vMat)
+    const mvStack = [vMat]
+    gl.uniformMatrix4fv(projLoc, false, pMat.elements)
+
+    // draw the sun
+    mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+    mvStack[mvStack.length - 1]["*="](glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0)))
+    mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+    mvStack[mvStack.length - 1]["*="](glm.rotate(glm.mat4(1.0), currentTime, glm.vec3(1.0, 0.0, 0.0)))
+    mvStack[mvStack.length - 1]["*="](glm.scale(glm.mat4(1.0), glm.vec3(0.5, 0.5, 0.5)))
+    let invTrMat = glm.transpose(glm.inverse(mvStack[mvStack.length - 1]))
+    gl.uniformMatrix4fv(mvLoc, false, mvStack[mvStack.length - 1].elements)
+    gl.uniformMatrix4fv(nLoc, false, invTrMat.elements)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[0])
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(0)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[1])
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(1)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[2])
+    gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(2)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, sunTexture)
+    gl.enable(gl.DEPTH_TEST)
+    gl.depthFunc(gl.LEQUAL)
+    gl.enable(gl.CULL_FACE)
+    gl.frontFace(gl.CCW)
+    gl.drawArrays(gl.TRIANGLES, 0, mySphere.numIndices)
+    mvStack.pop()
+
+    for (let p of myPlanets) {
+        mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+        mvStack[mvStack.length - 1]["*="](p.getTranslationMatrix(currentTime))
+        mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+        mvStack[mvStack.length - 1]["*="](p.getRotationMatrix(currentTime))
+        mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+        mvStack[mvStack.length - 1]["*="](p.getScaleMatrix())
+        invTrMat = glm.transpose(glm.inverse(mvStack[mvStack.length - 1]))
+        gl.uniformMatrix4fv(mvLoc, false, mvStack[mvStack.length - 1].elements)
+        gl.uniformMatrix4fv(nLoc, false, invTrMat.elements)
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo[0])
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(0)
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo[1])
+        gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(1)
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo[2])
+        gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(2)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, p.getTextureObject(gl))
+        gl.enable(gl.DEPTH_TEST)
+        gl.depthFunc(gl.LEQUAL)
+        gl.enable(gl.CULL_FACE)
+        gl.frontFace(gl.CCW)
+        gl.drawArrays(gl.TRIANGLES, 0, mySphere.numIndices)
+        mvStack.pop()
+        mvStack.pop()
+        mvStack.pop()
+    }
+    // draw the earth
+    mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+    mvStack[mvStack.length - 1]["*="](myEarth.getTranslationMatrix(currentTime))
+    mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+    mvStack[mvStack.length - 1]["*="](myEarth.getRotationMatrix(currentTime))
+    invTrMat = glm.transpose(glm.inverse(mvStack[mvStack.length - 1]))
+    gl.uniformMatrix4fv(mvLoc, false, mvStack[mvStack.length - 1].elements)
+    gl.uniformMatrix4fv(nLoc, false, invTrMat.elements)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[0])
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(0)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[1])
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(1)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[2])
+    gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(2)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, myEarth.getTextureObject(gl))
+    gl.enable(gl.DEPTH_TEST)
+    gl.depthFunc(gl.LEQUAL)
+    gl.enable(gl.CULL_FACE)
+    gl.frontFace(gl.CCW)
+    gl.drawArrays(gl.TRIANGLES, 0, mySphere.numIndices)
+    mvStack.pop()
+
+    mvStack.push(glm.mat4(mvStack[mvStack.length - 1].elements))
+    mvStack[mvStack.length - 1]["*="](glm.translate(glm.mat4(1.0), glm.vec3(Math.sin(currentTime) * 1.6, 0.0, Math.cos(currentTime) * 1.6)))
+    mvStack[mvStack.length - 1]["*="](glm.scale(glm.mat4(1.0), glm.vec3(0.25, 0.25, 0.25)))
+    invTrMat = glm.transpose(glm.inverse(mvStack[mvStack.length - 1]))
+    gl.uniformMatrix4fv(mvLoc, false, mvStack[mvStack.length - 1].elements)
+    gl.uniformMatrix4fv(nLoc, false, invTrMat.elements)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[0])
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(0)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[1])
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(1)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo[2])
+    gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(2)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, moonTexture)
+    gl.enable(gl.DEPTH_TEST)
+    gl.depthFunc(gl.LEQUAL)
+    gl.enable(gl.CULL_FACE)
+    gl.frontFace(gl.CCW)
+    gl.drawArrays(gl.TRIANGLES, 0, mySphere.numIndices)
 }
