@@ -18,6 +18,7 @@ may be helpful, but details may differ due to your dev environment. :-)
 
 # Implemented features
 - Draw the starfield, the sun, all the planets and the moon basically correct, with lighting
+- Interactive part (drag/scroll/zoom to move the camera)
 
 # Not yet finished
-- Interactive part (currently the view is fixed)
+- Free roam

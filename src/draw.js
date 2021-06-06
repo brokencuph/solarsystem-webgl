@@ -195,8 +195,9 @@ var myPlanets = [
 var myEarth = new Planet(6.46, 1.0, 15.0, 5.0, 3.14, "textures/earth.bmp")
 
 var aspect, pMat
-var cameraX, cameraY, cameraZ
-var xrot = 0.0, yrot = 0.0
+var cameraX, cameraY
+export var cameraZ
+export var xrot = 0.0, yrot = 0.0
 
 const lightLoc = glm.vec3(0.0, 0.0, 0.0)
 const globalAmbient = new Float32Array([0.7, 0.7, 0.7, 1.0])
